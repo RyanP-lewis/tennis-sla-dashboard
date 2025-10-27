@@ -1,0 +1,1715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://apis.google.com https://accounts.google.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://sheets.googleapis.com https://accounts.google.com https://oauth2.googleapis.com; frame-src https://accounts.google.com; img-src 'self' data: https:;">
+    <title>Tennis Tournament SLA Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer onload="gisLoaded()"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+
+        .header {
+            background-color: white;
+            padding: 30px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .last-updated {
+            color: #10b981;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .controls {
+            background-color: white;
+            padding: 20px 30px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .filter-group label {
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        select {
+            padding: 8px 32px 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            background-color: white;
+            cursor: pointer;
+            min-width: 150px;
+        }
+
+        .tournament-count {
+            color: #666;
+            font-size: 14px;
+            margin-left: auto;
+        }
+
+        .trend-section {
+            background-color: white;
+            padding: 30px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .trend-chart-container {
+            height: 400px;
+            position: relative;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-left: auto;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background-color: #2563eb;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #1d4ed8;
+        }
+
+        .btn-secondary {
+            background-color: #10b981;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background-color: #059669;
+        }
+
+        .btn-refresh {
+            background-color: #8b5cf6;
+            color: white;
+        }
+
+        .btn-refresh:hover {
+            background-color: #7c3aed;
+        }
+
+        .btn-refresh.refreshing {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .charts-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .chart-container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            height: 500px;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 100%;
+        }
+
+        .summary-section {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .summary-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 25px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 30px;
+        }
+
+        .summary-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .summary-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .summary-value {
+            font-size: 20px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .summary-status {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .comparison-text {
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+
+        .comparison-positive {
+            color: #10b981;
+        }
+
+        .comparison-negative {
+            color: #ef4444;
+        }
+
+        .comparison-neutral {
+            color: #6b7280;
+        }
+
+        .at-target {
+            color: #10b981;
+        }
+
+        .below-target {
+            color: #ef4444;
+        }
+
+        .status-icon {
+            font-size: 16px;
+            margin-right: 4px;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 40px;
+            border-radius: 12px;
+            max-width: 500px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .modal-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 10px;
+        }
+
+        .modal-message {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .modal-button {
+            padding: 12px 24px;
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .modal-button:hover {
+            background-color: #1d4ed8;
+        }
+
+        /* Comparison Modal Styles */
+        .comparison-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            overflow-y: auto;
+        }
+
+        .comparison-modal-content {
+            background-color: white;
+            padding: 40px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 1400px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .comparison-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .comparison-modal-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1a1a1a;
+        }
+
+        .close-button {
+            font-size: 28px;
+            color: #666;
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .close-button:hover {
+            color: #1a1a1a;
+        }
+
+        .comparison-charts-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .comparison-chart-container {
+            background-color: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+            height: 400px;
+        }
+
+        .comparison-chart-wrapper {
+            position: relative;
+            height: 100%;
+        }
+
+        .auto-refresh-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            color: #8b5cf6;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .auto-refresh-indicator.active {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @media (max-width: 1200px) {
+            .comparison-charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .summary-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Tennis Tournament SLA Dashboard</h1>
+        <div class="subtitle">
+            <span>Performance metrics and analytics - Data synced from Google Sheets</span>
+            <span class="last-updated" id="lastUpdated"></span>
+        </div>
+    </div>
+
+    <div class="controls">
+        <div class="filter-group">
+            <label for="categoryFilter">Category:</label>
+            <select id="categoryFilter">
+                <option value="all">All Categories</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label for="quarterFilter">Quarter:</label>
+            <select id="quarterFilter">
+                <option value="all">All Quarters</option>
+                <option value="Q1">Q1</option>
+                <option value="Q2">Q2</option>
+                <option value="Q3">Q3</option>
+                <option value="Q4">Q4</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label for="monthFilter">Month:</label>
+            <select id="monthFilter">
+                <option value="all">All Months</option>
+                <option value="1">January</option>
+                <option value="2">February</option>
+                <option value="3">March</option>
+                <option value="4">April</option>
+                <option value="5">May</option>
+                <option value="6">June</option>
+                <option value="7">July</option>
+                <option value="8">August</option>
+                <option value="9">September</option>
+                <option value="10">October</option>
+                <option value="11">November</option>
+                <option value="12">December</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label for="tournamentFilter">Tournament:</label>
+            <select id="tournamentFilter">
+                <option value="all">All Tournaments</option>
+            </select>
+        </div>
+
+        <div class="action-buttons">
+            <button id="compareButton" class="btn btn-primary" onclick="showComparison()" style="display: none;">
+                <span>📊</span> Compare Initial vs Full
+            </button>
+            <button id="refreshButton" class="btn btn-refresh" onclick="refreshData()" style="display: none;">
+                <span>🔄</span> Refresh Data
+            </button>
+            <button id="signInButton" class="btn btn-secondary" onclick="handleAuthClick()" style="display: block;">
+                <span>🔐</span> Sign in with Google
+            </button>
+            <button id="signOutButton" class="btn btn-secondary" onclick="handleSignoutClick()" style="display: none;">
+                <span>🚪</span> Sign out
+            </button>
+        </div>
+
+        <div class="tournament-count" id="tournamentCount"></div>
+    </div>
+
+    <div class="trend-section">
+        <h2 class="summary-title">Monthly SLA Performance Trends</h2>
+        <div class="trend-chart-container">
+            <canvas id="trendChart"></canvas>
+        </div>
+    </div>
+
+    <div class="charts-grid">
+        <div class="chart-container">
+            <div class="chart-wrapper">
+                <canvas id="completenessChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-container">
+            <div class="chart-wrapper">
+                <canvas id="latencyChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-container">
+            <div class="chart-wrapper">
+                <canvas id="rallyLengthChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-container">
+            <div class="chart-wrapper">
+                <canvas id="pointOutcomeChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-container">
+            <div class="chart-wrapper">
+                <canvas id="errorTypeChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-container">
+            <div class="chart-wrapper">
+                <canvas id="lastShotChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-container">
+            <div class="chart-wrapper">
+                <canvas id="situationChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-container">
+            <div class="chart-wrapper">
+                <canvas id="matchFailuresChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="summary-section">
+        <h2 class="summary-title">Performance Summary</h2>
+        <div class="summary-grid">
+            <div class="summary-item">
+                <div class="summary-label">Completeness</div>
+                <div class="summary-value" id="completenessSum">-</div>
+                <div class="summary-status" id="completenessStatus"></div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-label">Latency</div>
+                <div class="summary-value" id="latencySum">-</div>
+                <div class="summary-status" id="latencyStatus"></div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-label">Rally Length</div>
+                <div class="summary-value" id="rallyLengthSum">-</div>
+                <div class="summary-status" id="rallyLengthStatus"></div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-label">Point Outcome</div>
+                <div class="summary-value" id="pointOutcomeSum">-</div>
+                <div class="summary-status" id="pointOutcomeStatus"></div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-label">Error Type</div>
+                <div class="summary-value" id="errorTypeSum">-</div>
+                <div class="summary-status" id="errorTypeStatus"></div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-label">Last Shot</div>
+                <div class="summary-value" id="lastShotSum">-</div>
+                <div class="summary-status" id="lastShotStatus"></div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-label">Situation</div>
+                <div class="summary-value" id="situationSum">-</div>
+                <div class="summary-status" id="situationStatus"></div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-label">Match Failures</div>
+                <div class="summary-value" id="matchFailuresSum">-</div>
+                <div class="summary-status" id="matchFailuresStatus"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div id="successModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-icon">✅</div>
+            <div class="modal-title">Data Updated Successfully!</div>
+            <div class="modal-message">The dashboard has been refreshed with the latest data from Google Sheets.</div>
+            <button class="modal-button" onclick="closeModal()">Continue</button>
+        </div>
+    </div>
+
+    <!-- Comparison Modal -->
+    <div id="comparisonModal" class="comparison-modal">
+        <div class="comparison-modal-content">
+            <div class="comparison-modal-header">
+                <h2 class="comparison-modal-title" id="comparisonModalTitle">Initial vs Full Report Comparison</h2>
+                <button class="close-button" onclick="closeComparisonModal()">×</button>
+            </div>
+            
+            <!-- Comparison Summary Section -->
+            <div class="summary-section" style="margin-bottom: 30px;">
+                <h3 class="summary-title">Performance Summary - Initial vs Full</h3>
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <div class="summary-label">Completeness</div>
+                        <div class="summary-value" id="comparisonCompletenessSum">-</div>
+                        <div class="summary-status" id="comparisonCompletenessStatus"></div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">Latency</div>
+                        <div class="summary-value" id="comparisonLatencySum">-</div>
+                        <div class="summary-status" id="comparisonLatencyStatus"></div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">Rally Length</div>
+                        <div class="summary-value" id="comparisonRallyLengthSum">-</div>
+                        <div class="summary-status" id="comparisonRallyLengthStatus"></div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">Point Outcome</div>
+                        <div class="summary-value" id="comparisonPointOutcomeSum">-</div>
+                        <div class="summary-status" id="comparisonPointOutcomeStatus"></div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">Error Type</div>
+                        <div class="summary-value" id="comparisonErrorTypeSum">-</div>
+                        <div class="summary-status" id="comparisonErrorTypeStatus"></div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">Last Shot</div>
+                        <div class="summary-value" id="comparisonLastShotSum">-</div>
+                        <div class="summary-status" id="comparisonLastShotStatus"></div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">Situation</div>
+                        <div class="summary-value" id="comparisonSituationSum">-</div>
+                        <div class="summary-status" id="comparisonSituationStatus"></div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">Match Failures</div>
+                        <div class="summary-value" id="comparisonMatchFailuresSum">-</div>
+                        <div class="summary-status" id="comparisonMatchFailuresStatus"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="comparison-charts-grid">
+                <div class="comparison-chart-container">
+                    <div class="comparison-chart-wrapper">
+                        <canvas id="comparisonCompletenessChart"></canvas>
+                    </div>
+                </div>
+                <div class="comparison-chart-container">
+                    <div class="comparison-chart-wrapper">
+                        <canvas id="comparisonLatencyChart"></canvas>
+                    </div>
+                </div>
+                <div class="comparison-chart-container">
+                    <div class="comparison-chart-wrapper">
+                        <canvas id="comparisonRallyLengthChart"></canvas>
+                    </div>
+                </div>
+                <div class="comparison-chart-container">
+                    <div class="comparison-chart-wrapper">
+                        <canvas id="comparisonPointOutcomeChart"></canvas>
+                    </div>
+                </div>
+                <div class="comparison-chart-container">
+                    <div class="comparison-chart-wrapper">
+                        <canvas id="comparisonErrorTypeChart"></canvas>
+                    </div>
+                </div>
+                <div class="comparison-chart-container">
+                    <div class="comparison-chart-wrapper">
+                        <canvas id="comparisonLastShotChart"></canvas>
+                    </div>
+                </div>
+                <div class="comparison-chart-container">
+                    <div class="comparison-chart-wrapper">
+                        <canvas id="comparisonSituationChart"></canvas>
+                    </div>
+                </div>
+                <div class="comparison-chart-container">
+                    <div class="comparison-chart-wrapper">
+                        <canvas id="comparisonMatchFailuresChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Google OAuth and Sheets API Configuration
+        const CLIENT_ID = '29621962273-h6h823qcmuuaji2bnk55errj9hnq69ff.apps.googleusercontent.com';
+        const SPREADSHEET_ID = '1LY-OV6xx0GwHFGqt7s9DuY-4VxejNVFHYt8RSGqJc5k';
+        const SCOPES = 'https://www.googleapis.com/auth/spreadsheets.readonly';
+        
+        // Auto-refresh configuration (in milliseconds) - set to 0 to disable
+        const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+        
+        let tokenClient;
+        let gapiInited = false;
+        let gisInited = false;
+        let autoRefreshTimer = null;
+        let isRefreshing = false;
+
+        // Global variables
+        let tournamentData = [];
+        let chartInstances = {};
+        let comparisonChartInstances = {};
+        let trendChartInstance = null;
+
+        // Initialize Google APIs
+        function gapiLoaded() {
+            gapi.load('client', initializeGapiClient);
+        }
+
+        async function initializeGapiClient() {
+            try {
+                await gapi.client.init({
+                    discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
+                });
+                gapiInited = true;
+                console.log('Google API Client initialized successfully');
+                maybeEnableButtons();
+            } catch (error) {
+                console.error('Error initializing Google API Client:', error);
+                alert('Failed to initialize Google API. Please refresh the page.');
+            }
+        }
+
+        function gisLoaded() {
+            try {
+                tokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: CLIENT_ID,
+                    scope: SCOPES,
+                    callback: '', // defined later
+                });
+                gisInited = true;
+                console.log('Google Identity Services initialized successfully');
+                maybeEnableButtons();
+            } catch (error) {
+                console.error('Error initializing Google Identity Services:', error);
+                alert('Failed to initialize Google Sign-In. Please refresh the page.');
+            }
+        }
+
+        function maybeEnableButtons() {
+            if (gapiInited && gisInited) {
+                document.getElementById('signInButton').disabled = false;
+                console.log('Dashboard ready! You can now sign in.');
+            } else {
+                console.log('Waiting for Google APIs...', {gapiInited, gisInited});
+            }
+        }
+
+        // Handle authentication
+        function handleAuthClick() {
+            // Check if APIs are loaded
+            if (!gapiInited || !gisInited) {
+                alert('Google APIs are still loading. Please wait a moment and try again.');
+                return;
+            }
+
+            tokenClient.callback = async (resp) => {
+                if (resp.error !== undefined) {
+                    console.error('Auth error:', resp);
+                    alert('Authentication failed: ' + resp.error);
+                    return;
+                }
+                document.getElementById('signInButton').style.display = 'none';
+                document.getElementById('signOutButton').style.display = 'block';
+                document.getElementById('refreshButton').style.display = 'flex';
+                await loadDataFromSheet();
+                startAutoRefresh();
+            };
+
+            if (gapi.client.getToken() === null) {
+                tokenClient.requestAccessToken({prompt: 'consent'});
+            } else {
+                tokenClient.requestAccessToken({prompt: ''});
+            }
+        }
+
+        function handleSignoutClick() {
+            const token = gapi.client.getToken();
+            if (token !== null) {
+                google.accounts.oauth2.revoke(token.access_token);
+                gapi.client.setToken('');
+                document.getElementById('signInButton').style.display = 'block';
+                document.getElementById('signOutButton').style.display = 'none';
+                document.getElementById('refreshButton').style.display = 'none';
+                stopAutoRefresh();
+                // Clear dashboard
+                tournamentData = [];
+                updateDashboard();
+                updateLastRefreshTime(null);
+            }
+        }
+
+        // Auto-refresh functionality
+        function startAutoRefresh() {
+            if (AUTO_REFRESH_INTERVAL > 0) {
+                stopAutoRefresh(); // Clear any existing timer
+                autoRefreshTimer = setInterval(async () => {
+                    if (!isRefreshing) {
+                        console.log('Auto-refreshing data...');
+                        await refreshData(true);
+                    }
+                }, AUTO_REFRESH_INTERVAL);
+            }
+        }
+
+        function stopAutoRefresh() {
+            if (autoRefreshTimer) {
+                clearInterval(autoRefreshTimer);
+                autoRefreshTimer = null;
+            }
+        }
+
+        // Manual refresh function
+        async function refreshData(isAutoRefresh = false) {
+            if (isRefreshing) return;
+            
+            isRefreshing = true;
+            const refreshButton = document.getElementById('refreshButton');
+            refreshButton.classList.add('refreshing');
+            refreshButton.disabled = true;
+            refreshButton.innerHTML = '<span>⏳</span> Refreshing...';
+            
+            try {
+                await loadDataFromSheet(true);
+                if (!isAutoRefresh) {
+                    // Show success modal only for manual refresh
+                    document.getElementById('successModal').style.display = 'flex';
+                }
+            } catch (error) {
+                console.error('Refresh error:', error);
+                alert('Error refreshing data: ' + error.message);
+            } finally {
+                isRefreshing = false;
+                refreshButton.classList.remove('refreshing');
+                refreshButton.disabled = false;
+                refreshButton.innerHTML = '<span>🔄</span> Refresh Data';
+            }
+        }
+
+        // Update last refresh time display
+        function updateLastRefreshTime(date = new Date()) {
+            const lastUpdatedEl = document.getElementById('lastUpdated');
+            if (date === null) {
+                lastUpdatedEl.textContent = '';
+            } else {
+                const timeStr = date.toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+                lastUpdatedEl.textContent = `Last updated: ${timeStr}`;
+            }
+        }
+
+        // Load data from Google Sheet
+        async function loadDataFromSheet(isRefresh = false) {
+            try {
+                const response = await gapi.client.sheets.spreadsheets.values.get({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: 'Sheet1!A:P', // Adjust range if needed
+                });
+
+                const rows = response.result.values;
+                if (!rows || rows.length === 0) {
+                    alert('No data found in the sheet.');
+                    return;
+                }
+
+                // Parse the data (skip header row)
+                const headers = rows[0];
+                tournamentData = rows.slice(1).map(row => ({
+                    tournament: row[0] || '',
+                    tournamentId: row[1] || '',
+                    startDate: parseDate(row[2] || ''),
+                    endDate: parseDate(row[3] || ''),
+                    provider: row[4] || '',
+                    eventCategory: row[5] || '',
+                    reportType: row[6] || 'Full',
+                    completeness: parseFloat(row[7]) || 0,
+                    latency: parseFloat(row[8]) || 0,
+                    rallyLength: parseFloat(row[9]) || 0,
+                    pointOutcome: parseFloat(row[10]) || 0,
+                    errorType: parseFloat(row[11]) || 0,
+                    lastShot: parseFloat(row[12]) || 0,
+                    situation: parseFloat(row[13]) || 0,
+                    matchFailures: parseInt(row[14]) || 0
+                })).filter(t => t.tournament); // Filter out empty rows
+
+                populateFilters();
+                updateDashboard();
+                toggleComparisonButton();
+                updateLastRefreshTime();
+
+                console.log(`Data ${isRefresh ? 'refreshed' : 'loaded'} successfully:`, tournamentData.length, 'tournaments');
+            } catch (err) {
+                alert('Error loading data from Google Sheet: ' + err.message);
+                console.error('Error:', err);
+                throw err;
+            }
+        }
+
+        // Benchmarks
+        const benchmarks = {
+            completeness: 99.5,
+            latency: 98,
+            rallyLength: 97.5,
+            pointOutcome: 97.5,
+            errorType: 97.5,
+            lastShot: 97.5,
+            situation: 97.5
+        };
+
+        // Chart colors
+        const chartColors = {
+            completenessChart: '#3b82f6',
+            latencyChart: '#8b5cf6',
+            rallyLengthChart: '#ec4899',
+            pointOutcomeChart: '#f59e0b',
+            errorTypeChart: '#10b981',
+            lastShotChart: '#06b6d4',
+            situationChart: '#6366f1',
+            matchFailuresChart: '#ef4444'
+        };
+
+        // Lighter versions of colors for comparison charts
+        const comparisonColors = {
+            initial: 'rgba(59, 130, 246, 0.6)',
+            full: 'rgba(16, 185, 129, 0.6)'
+        };
+
+        // Parse date string (YYYY-MM-DD)
+        function parseDate(dateStr) {
+            const parts = dateStr.split('-');
+            return new Date(parts[0], parts[1] - 1, parts[2]);
+        }
+
+        // Load initial data
+        function loadInitialData() {
+            // The gapiLoaded() and gisLoaded() functions will be called automatically
+            // when the scripts finish loading via their onload attributes
+            
+            // Start with empty dataset until user signs in
+            tournamentData = [];
+            populateFilters();
+            updateDashboard();
+            toggleComparisonButton();
+        }
+
+        // Populate filter dropdowns
+        function populateFilters() {
+            // Get unique categories
+            const categories = [...new Set(tournamentData.map(t => t.eventCategory))].sort();
+            const categoryFilter = document.getElementById('categoryFilter');
+            categoryFilter.innerHTML = '<option value="all">All Categories</option>';
+            categories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat;
+                option.textContent = cat;
+                categoryFilter.appendChild(option);
+            });
+
+            // Get unique tournaments (only Full reports for tournament filter)
+            const tournaments = [...new Set(tournamentData
+                .filter(t => t.reportType === 'Full')
+                .map(t => t.tournament))]
+                .sort();
+            const tournamentFilter = document.getElementById('tournamentFilter');
+            tournamentFilter.innerHTML = '<option value="all">All Tournaments</option>';
+            tournaments.forEach(tournament => {
+                const option = document.createElement('option');
+                option.value = tournament;
+                option.textContent = tournament;
+                tournamentFilter.appendChild(option);
+            });
+        }
+
+        // Show/hide comparison button
+        function toggleComparisonButton() {
+            const tournamentFilter = document.getElementById('tournamentFilter').value;
+            const compareButton = document.getElementById('compareButton');
+            
+            if (tournamentFilter !== 'all') {
+                // Check if selected tournament has both Initial and Full reports
+                const tournamentReports = tournamentData.filter(t => t.tournament === tournamentFilter);
+                const hasInitial = tournamentReports.some(t => t.reportType === 'Initial');
+                const hasFull = tournamentReports.some(t => t.reportType === 'Full');
+                
+                compareButton.style.display = (hasInitial && hasFull) ? 'flex' : 'none';
+            } else {
+                compareButton.style.display = 'none';
+            }
+        }
+
+        // Create a bar chart with benchmark in title
+        function createChart(canvasId, title, data, labels, benchmark) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            
+            // Destroy existing chart if it exists
+            if (chartInstances[canvasId]) {
+                chartInstances[canvasId].destroy();
+            }
+
+            const color = chartColors[canvasId];
+            
+            // Add benchmark to title if provided
+            let fullTitle = title;
+            if (benchmark !== null && benchmark !== undefined) {
+                fullTitle = [title, `Benchmark: ${benchmark}%`];
+            }
+
+            const datasets = [{
+                label: title,
+                data: data,
+                backgroundColor: color,
+                borderColor: color,
+                borderWidth: 1
+            }];
+
+            // Add benchmark line if benchmark is provided
+            if (benchmark !== null && benchmark !== undefined) {
+                datasets.push({
+                    label: 'Target',
+                    data: new Array(data.length).fill(benchmark),
+                    type: 'line',
+                    borderColor: '#ef4444',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    pointRadius: 0,
+                    fill: false
+                });
+            }
+
+            chartInstances[canvasId] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true
+                        },
+                        title: {
+                            display: true,
+                            text: fullTitle,
+                            font: {
+                                size: 16,
+                                weight: 'bold'
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                autoSkip: false,
+                                maxRotation: 90,
+                                minRotation: 45,
+                                font: {
+                                    size: 10
+                                }
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: canvasId === 'matchFailuresChart' ? undefined : 100
+                        }
+                    }
+                }
+            });
+        }
+
+        // Create trend chart
+        function createTrendChart(data) {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            
+            if (trendChartInstance) {
+                trendChartInstance.destroy();
+            }
+
+            // Aggregate data by month
+            const monthlyData = {};
+            
+            data.forEach(tournament => {
+                const date = tournament.startDate;
+                const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                
+                if (!monthlyData[monthKey]) {
+                    monthlyData[monthKey] = {
+                        completeness: [],
+                        latency: [],
+                        rallyLength: [],
+                        pointOutcome: [],
+                        errorType: [],
+                        lastShot: [],
+                        situation: []
+                    };
+                }
+                
+                monthlyData[monthKey].completeness.push(tournament.completeness);
+                monthlyData[monthKey].latency.push(tournament.latency);
+                monthlyData[monthKey].rallyLength.push(tournament.rallyLength);
+                monthlyData[monthKey].pointOutcome.push(tournament.pointOutcome);
+                monthlyData[monthKey].errorType.push(tournament.errorType);
+                monthlyData[monthKey].lastShot.push(tournament.lastShot);
+                monthlyData[monthKey].situation.push(tournament.situation);
+            });
+            
+            // Sort months and calculate averages
+            const sortedMonths = Object.keys(monthlyData).sort();
+            const labels = sortedMonths.map(monthKey => {
+                const [year, month] = monthKey.split('-');
+                const date = new Date(year, month - 1);
+                return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+            });
+            
+            const avgData = {
+                completeness: [],
+                latency: [],
+                rallyLength: [],
+                pointOutcome: [],
+                errorType: [],
+                lastShot: [],
+                situation: []
+            };
+            
+            sortedMonths.forEach(monthKey => {
+                const monthData = monthlyData[monthKey];
+                avgData.completeness.push(monthData.completeness.reduce((a, b) => a + b, 0) / monthData.completeness.length);
+                avgData.latency.push(monthData.latency.reduce((a, b) => a + b, 0) / monthData.latency.length);
+                avgData.rallyLength.push(monthData.rallyLength.reduce((a, b) => a + b, 0) / monthData.rallyLength.length);
+                avgData.pointOutcome.push(monthData.pointOutcome.reduce((a, b) => a + b, 0) / monthData.pointOutcome.length);
+                avgData.errorType.push(monthData.errorType.reduce((a, b) => a + b, 0) / monthData.errorType.length);
+                avgData.lastShot.push(monthData.lastShot.reduce((a, b) => a + b, 0) / monthData.lastShot.length);
+                avgData.situation.push(monthData.situation.reduce((a, b) => a + b, 0) / monthData.situation.length);
+            });
+
+            trendChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Completeness',
+                            data: avgData.completeness,
+                            borderColor: chartColors.completenessChart,
+                            backgroundColor: chartColors.completenessChart,
+                            tension: 0.4,
+                            pointRadius: 5,
+                            pointHoverRadius: 7,
+                            fill: false
+                        },
+                        {
+                            label: 'Latency',
+                            data: avgData.latency,
+                            borderColor: chartColors.latencyChart,
+                            backgroundColor: chartColors.latencyChart,
+                            tension: 0.4,
+                            pointRadius: 5,
+                            pointHoverRadius: 7,
+                            fill: false
+                        },
+                        {
+                            label: 'Rally Length',
+                            data: avgData.rallyLength,
+                            borderColor: chartColors.rallyLengthChart,
+                            backgroundColor: chartColors.rallyLengthChart,
+                            tension: 0.4,
+                            pointRadius: 5,
+                            pointHoverRadius: 7,
+                            fill: false
+                        },
+                        {
+                            label: 'Point Outcome',
+                            data: avgData.pointOutcome,
+                            borderColor: chartColors.pointOutcomeChart,
+                            backgroundColor: chartColors.pointOutcomeChart,
+                            tension: 0.4,
+                            pointRadius: 5,
+                            pointHoverRadius: 7,
+                            fill: false
+                        },
+                        {
+                            label: 'Error Type',
+                            data: avgData.errorType,
+                            borderColor: chartColors.errorTypeChart,
+                            backgroundColor: chartColors.errorTypeChart,
+                            tension: 0.4,
+                            pointRadius: 5,
+                            pointHoverRadius: 7,
+                            fill: false
+                        },
+                        {
+                            label: 'Last Shot',
+                            data: avgData.lastShot,
+                            borderColor: chartColors.lastShotChart,
+                            backgroundColor: chartColors.lastShotChart,
+                            tension: 0.4,
+                            pointRadius: 5,
+                            pointHoverRadius: 7,
+                            fill: false
+                        },
+                        {
+                            label: 'Situation',
+                            data: avgData.situation,
+                            borderColor: chartColors.situationChart,
+                            backgroundColor: chartColors.situationChart,
+                            tension: 0.4,
+                            pointRadius: 5,
+                            pointHoverRadius: 7,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom',
+                            labels: {
+                                usePointStyle: true,
+                                pointStyle: 'circle',
+                                padding: 15
+                            }
+                        },
+                        title: {
+                            display: false
+                        },
+                        tooltip: {
+                            enabled: true,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + '%';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Month'
+                            },
+                            ticks: {
+                                autoSkip: false
+                            }
+                        },
+                        y: {
+                            beginAtZero: false,
+                            min: 85,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Average Performance (%)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Create comparison chart
+        function createComparisonChart(canvasId, title, initialValue, fullValue, benchmark) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            
+            if (comparisonChartInstances[canvasId]) {
+                comparisonChartInstances[canvasId].destroy();
+            }
+
+            const datasets = [
+                {
+                    label: 'Initial Report',
+                    data: [initialValue, null],
+                    backgroundColor: comparisonColors.initial,
+                    borderColor: comparisonColors.initial,
+                    borderWidth: 1,
+                    barPercentage: 1.0,
+                    categoryPercentage: 0.5
+                },
+                {
+                    label: 'Full Report',
+                    data: [null, fullValue],
+                    backgroundColor: comparisonColors.full,
+                    borderColor: comparisonColors.full,
+                    borderWidth: 1,
+                    barPercentage: 1.0,
+                    categoryPercentage: 0.5
+                }
+            ];
+
+            // Prepare title with benchmark if provided
+            let chartTitle = title;
+            if (benchmark !== null && benchmark !== undefined) {
+                chartTitle = [title, `Benchmark: ${benchmark}%`];
+            }
+
+            comparisonChartInstances[canvasId] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Initial', 'Full'],
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        title: {
+                            display: true,
+                            text: chartTitle,
+                            font: {
+                                size: 14,
+                                weight: 'bold'
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: false
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: canvasId.includes('MatchFailures') ? undefined : 100
+                        }
+                    }
+                },
+                plugins: benchmark !== null && benchmark !== undefined ? [{
+                    id: 'benchmarkLine',
+                    afterDraw: (chart) => {
+                        const ctx = chart.ctx;
+                        const yAxis = chart.scales.y;
+                        const xAxis = chart.scales.x;
+                        const yValue = yAxis.getPixelForValue(benchmark);
+                        
+                        ctx.save();
+                        ctx.strokeStyle = '#ef4444';
+                        ctx.lineWidth = 3;
+                        ctx.setLineDash([10, 5]);
+                        ctx.beginPath();
+                        ctx.moveTo(xAxis.left, yValue);
+                        ctx.lineTo(xAxis.right, yValue);
+                        ctx.stroke();
+                        ctx.restore();
+                    }
+                }] : []
+            });
+        }
+
+        // Update comparison summary
+        function updateComparisonSummary(initialReport, fullReport) {
+            const metrics = [
+                { key: 'completeness', id: 'comparisonCompleteness', benchmark: benchmarks.completeness },
+                { key: 'latency', id: 'comparisonLatency', benchmark: benchmarks.latency },
+                { key: 'rallyLength', id: 'comparisonRallyLength', benchmark: benchmarks.rallyLength },
+                { key: 'pointOutcome', id: 'comparisonPointOutcome', benchmark: benchmarks.pointOutcome },
+                { key: 'errorType', id: 'comparisonErrorType', benchmark: benchmarks.errorType },
+                { key: 'lastShot', id: 'comparisonLastShot', benchmark: benchmarks.lastShot },
+                { key: 'situation', id: 'comparisonSituation', benchmark: benchmarks.situation }
+            ];
+
+            metrics.forEach(metric => {
+                const initialVal = initialReport[metric.key];
+                const fullVal = fullReport[metric.key];
+                
+                const valueEl = document.getElementById(metric.id + 'Sum');
+                const statusEl = document.getElementById(metric.id + 'Status');
+                
+                // Display both values
+                valueEl.innerHTML = `
+                    <span style="color: ${comparisonColors.initial.replace('0.6', '1')}; font-weight: 700;">Initial: ${initialVal.toFixed(2)}%</span><br>
+                    <span style="color: ${comparisonColors.full.replace('0.6', '1')}; font-weight: 700;">Full: ${fullVal.toFixed(2)}%</span>
+                `;
+                
+                // Calculate differences from benchmark
+                const initialDiff = initialVal - metric.benchmark;
+                const fullDiff = fullVal - metric.benchmark;
+                const absInitialDiff = Math.abs(initialDiff);
+                const absFullDiff = Math.abs(fullDiff);
+                
+                let statusHTML = '';
+                
+                // Initial status
+                if (initialDiff >= 0) {
+                    statusHTML += `<span class="at-target">Initial: <span class="status-icon">✓</span> ${absInitialDiff.toFixed(2)}% above target</span><br>`;
+                } else {
+                    statusHTML += `<span class="below-target">Initial: <span class="status-icon">✗</span> ${absInitialDiff.toFixed(2)}% below target</span><br>`;
+                }
+                
+                // Full status
+                if (fullDiff >= 0) {
+                    statusHTML += `<span class="at-target">Full: <span class="status-icon">✓</span> ${absFullDiff.toFixed(2)}% above target</span>`;
+                } else {
+                    statusHTML += `<span class="below-target">Full: <span class="status-icon">✗</span> ${absFullDiff.toFixed(2)}% below target</span>`;
+                }
+                
+                statusEl.innerHTML = statusHTML;
+            });
+
+            // Match failures
+            const initialFailures = initialReport.matchFailures;
+            const fullFailures = fullReport.matchFailures;
+            
+            document.getElementById('comparisonMatchFailuresSum').innerHTML = `
+                <span style="color: ${comparisonColors.initial.replace('0.6', '1')}; font-weight: 700;">Initial: ${initialFailures}</span><br>
+                <span style="color: ${comparisonColors.full.replace('0.6', '1')}; font-weight: 700;">Full: ${fullFailures}</span>
+            `;
+            
+            const failuresDiff = fullFailures - initialFailures;
+            let failuresStatusHTML = '';
+            
+            if (failuresDiff < 0) {
+                failuresStatusHTML = `<span class="comparison-positive">Improved by ${Math.abs(failuresDiff)} failures</span>`;
+            } else if (failuresDiff > 0) {
+                failuresStatusHTML = `<span class="comparison-negative">Increased by ${failuresDiff} failures</span>`;
+            } else {
+                failuresStatusHTML = `<span class="comparison-neutral">No change</span>`;
+            }
+            
+            document.getElementById('comparisonMatchFailuresStatus').innerHTML = failuresStatusHTML;
+        }
+
+        // Show comparison modal
+        function showComparison() {
+            const tournamentFilter = document.getElementById('tournamentFilter').value;
+            const tournamentReports = tournamentData.filter(t => t.tournament === tournamentFilter);
+            
+            const initialReport = tournamentReports.find(t => t.reportType === 'Initial');
+            const fullReport = tournamentReports.find(t => t.reportType === 'Full');
+
+            if (!initialReport || !fullReport) {
+                alert('Both Initial and Full reports are required for comparison.');
+                return;
+            }
+
+            // Update modal title
+            document.getElementById('comparisonModalTitle').textContent = 
+                `${tournamentFilter} - Initial vs Full Report Comparison`;
+
+            // Update comparison summary
+            updateComparisonSummary(initialReport, fullReport);
+
+            // Create comparison charts with benchmark lines
+            createComparisonChart('comparisonCompletenessChart', 'SLA - Completeness %', 
+                initialReport.completeness, fullReport.completeness, benchmarks.completeness);
+            
+            createComparisonChart('comparisonLatencyChart', 'SLA - Latency %', 
+                initialReport.latency, fullReport.latency, benchmarks.latency);
+            
+            createComparisonChart('comparisonRallyLengthChart', 'SLA - Rally Length Accuracy %', 
+                initialReport.rallyLength, fullReport.rallyLength, benchmarks.rallyLength);
+            
+            createComparisonChart('comparisonPointOutcomeChart', 'SLA - Point Outcome Accuracy %', 
+                initialReport.pointOutcome, fullReport.pointOutcome, benchmarks.pointOutcome);
+            
+            createComparisonChart('comparisonErrorTypeChart', 'SLA - Error Type Accuracy %', 
+                initialReport.errorType, fullReport.errorType, benchmarks.errorType);
+            
+            createComparisonChart('comparisonLastShotChart', 'SLA - Last Shot Accuracy %', 
+                initialReport.lastShot, fullReport.lastShot, benchmarks.lastShot);
+            
+            createComparisonChart('comparisonSituationChart', 'SLA - Situation Accuracy %', 
+                initialReport.situation, fullReport.situation, benchmarks.situation);
+            
+            createComparisonChart('comparisonMatchFailuresChart', 'Match Service Failure Count', 
+                initialReport.matchFailures, fullReport.matchFailures, null);
+
+            // Show modal
+            document.getElementById('comparisonModal').style.display = 'flex';
+        }
+
+        // Close comparison modal
+        function closeComparisonModal() {
+            document.getElementById('comparisonModal').style.display = 'none';
+        }
+
+        // Update dashboard based on filters
+        function updateDashboard() {
+            const categoryFilter = document.getElementById('categoryFilter').value;
+            const quarterFilter = document.getElementById('quarterFilter').value;
+            const monthFilter = document.getElementById('monthFilter').value;
+            const tournamentFilter = document.getElementById('tournamentFilter').value;
+
+            // Filter data - only show Full reports in main dashboard
+            let filteredData = tournamentData.filter(t => t.reportType === 'Full');
+            
+            if (categoryFilter !== 'all') {
+                filteredData = filteredData.filter(t => t.eventCategory === categoryFilter);
+            }
+            
+            if (quarterFilter !== 'all') {
+                const quarterNum = parseInt(quarterFilter.substring(1));
+                filteredData = filteredData.filter(t => {
+                    const month = t.startDate.getMonth() + 1;
+                    const quarter = Math.ceil(month / 3);
+                    return quarter === quarterNum;
+                });
+            }
+            
+            if (monthFilter !== 'all') {
+                const monthNum = parseInt(monthFilter);
+                filteredData = filteredData.filter(t => t.startDate.getMonth() + 1 === monthNum);
+            }
+            
+            if (tournamentFilter !== 'all') {
+                filteredData = filteredData.filter(t => t.tournament === tournamentFilter);
+            }
+
+            // Update tournament count
+            document.getElementById('tournamentCount').textContent = 
+                `${filteredData.length} tournament${filteredData.length !== 1 ? 's' : ''}`;
+
+            // Create trend chart
+            createTrendChart(filteredData);
+
+            // Prepare data for charts
+            const tournamentNames = filteredData.map(t => t.tournament);
+
+            // Create charts with benchmark lines - benchmark is always shown now
+            createChart('completenessChart', 'SLA - Completeness %', 
+                filteredData.map(t => t.completeness), tournamentNames, benchmarks.completeness);
+            
+            createChart('latencyChart', 'SLA - Latency %', 
+                filteredData.map(t => t.latency), tournamentNames, benchmarks.latency);
+            
+            createChart('rallyLengthChart', 'SLA - Rally Length Accuracy %', 
+                filteredData.map(t => t.rallyLength), tournamentNames, benchmarks.rallyLength);
+            
+            createChart('pointOutcomeChart', 'SLA - Point Outcome Accuracy %', 
+                filteredData.map(t => t.pointOutcome), tournamentNames, benchmarks.pointOutcome);
+            
+            createChart('errorTypeChart', 'SLA - Error Type Accuracy %', 
+                filteredData.map(t => t.errorType), tournamentNames, benchmarks.errorType);
+            
+            createChart('lastShotChart', 'SLA - Last Shot Accuracy %', 
+                filteredData.map(t => t.lastShot), tournamentNames, benchmarks.lastShot);
+            
+            createChart('situationChart', 'SLA - Situation Accuracy %', 
+                filteredData.map(t => t.situation), tournamentNames, benchmarks.situation);
+            
+            createChart('matchFailuresChart', 'Match Service Failure Count', 
+                filteredData.map(t => t.matchFailures), tournamentNames, null);
+
+            // Update summary
+            updateSummary(filteredData);
+        }
+
+        // Update summary section
+        function updateSummary(data) {
+            if (data.length === 0) return;
+
+            const monthFilter = document.getElementById('monthFilter').value;
+            const quarterFilter = document.getElementById('quarterFilter').value;
+
+            const metrics = [
+                { key: 'completeness', id: 'completeness', benchmark: benchmarks.completeness, chartId: 'completenessChart' },
+                { key: 'latency', id: 'latency', benchmark: benchmarks.latency, chartId: 'latencyChart' },
+                { key: 'rallyLength', id: 'rallyLength', benchmark: benchmarks.rallyLength, chartId: 'rallyLengthChart' },
+                { key: 'pointOutcome', id: 'pointOutcome', benchmark: benchmarks.pointOutcome, chartId: 'pointOutcomeChart' },
+                { key: 'errorType', id: 'errorType', benchmark: benchmarks.errorType, chartId: 'errorTypeChart' },
+                { key: 'lastShot', id: 'lastShot', benchmark: benchmarks.lastShot, chartId: 'lastShotChart' },
+                { key: 'situation', id: 'situation', benchmark: benchmarks.situation, chartId: 'situationChart' }
+            ];
+
+            // Get previous period data for comparison
+            let previousData = null;
+            
+            if (monthFilter !== 'all') {
+                // Compare to previous month
+                const currentMonth = parseInt(monthFilter);
+                const previousMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+                
+                previousData = tournamentData.filter(t => {
+                    const month = t.startDate.getMonth() + 1;
+                    return month === previousMonth;
+                });
+            } else if (quarterFilter !== 'all') {
+                // Compare to previous quarter
+                const currentQ = parseInt(quarterFilter.substring(1));
+                const previousQ = currentQ === 1 ? 4 : currentQ - 1;
+                
+                previousData = tournamentData.filter(t => {
+                    const month = t.startDate.getMonth() + 1;
+                    const quarter = Math.ceil(month / 3);
+                    return quarter === previousQ;
+                });
+            }
+
+            metrics.forEach(metric => {
+                const avg = data.reduce((sum, t) => sum + t[metric.key], 0) / data.length;
+                const diff = avg - metric.benchmark;
+                const absDiff = Math.abs(diff);
+                const chartColor = chartColors[metric.chartId];
+                
+                const valueEl = document.getElementById(metric.id + 'Sum');
+                const statusEl = document.getElementById(metric.id + 'Status');
+                
+                valueEl.innerHTML = `<span style="color: ${chartColor}; font-weight: 700;">${avg.toFixed(2)}%</span>`;
+                
+                let statusHTML = '';
+                if (diff >= 0) {
+                    statusHTML = `<span class="at-target"><span class="status-icon">✓</span> Target (${absDiff.toFixed(2)}% above)</span>`;
+                } else {
+                    statusHTML = `<span class="below-target"><span class="status-icon">✗</span> Below (${absDiff.toFixed(2)}%)</span>`;
+                }
+
+                // Add comparison to previous period if applicable
+                if (previousData && previousData.length > 0) {
+                    const prevAvg = previousData.reduce((sum, t) => sum + t[metric.key], 0) / previousData.length;
+                    const periodDiff = avg - prevAvg;
+                    const absPeriodDiff = Math.abs(periodDiff);
+                    
+                    let comparisonClass = 'comparison-neutral';
+                    let comparisonSymbol = '→';
+                    
+                    if (periodDiff > 0) {
+                        comparisonClass = 'comparison-positive';
+                        comparisonSymbol = '↑';
+                    } else if (periodDiff < 0) {
+                        comparisonClass = 'comparison-negative';
+                        comparisonSymbol = '↓';
+                    }
+                    
+                    const periodName = monthFilter !== 'all' ? 'vs prev month' : 'vs prev quarter';
+                    statusHTML += `<br><span class="comparison-text ${comparisonClass}">${comparisonSymbol} ${absPeriodDiff.toFixed(2)}% ${periodName}</span>`;
+                }
+                
+                statusEl.innerHTML = statusHTML;
+            });
+
+            // Match failures (no benchmark)
+            const avgFailures = data.reduce((sum, t) => sum + t.matchFailures, 0) / data.length;
+            const matchFailuresColor = chartColors['matchFailuresChart'];
+            document.getElementById('matchFailuresSum').innerHTML = `<span style="color: ${matchFailuresColor}; font-weight: 700;">${avgFailures.toFixed(0)}</span>`;
+            
+            let failuresStatusHTML = '';
+            
+            if (previousData && previousData.length > 0) {
+                const prevAvgFailures = previousData.reduce((sum, t) => sum + t.matchFailures, 0) / previousData.length;
+                const failuresDiff = avgFailures - prevAvgFailures;
+                const absFailuresDiff = Math.abs(failuresDiff);
+                
+                let comparisonClass = 'comparison-neutral';
+                let comparisonSymbol = '→';
+                
+                // For failures, fewer is better, so flip the colors
+                if (failuresDiff > 0) {
+                    comparisonClass = 'comparison-negative';
+                    comparisonSymbol = '↑';
+                } else if (failuresDiff < 0) {
+                    comparisonClass = 'comparison-positive';
+                    comparisonSymbol = '↓';
+                }
+                
+                const periodName = monthFilter !== 'all' ? 'vs prev month' : 'vs prev quarter';
+                failuresStatusHTML = `<span class="comparison-text ${comparisonClass}">${comparisonSymbol} ${absFailuresDiff.toFixed(0)} ${periodName}</span>`;
+            }
+            
+            document.getElementById('matchFailuresStatus').innerHTML = failuresStatusHTML;
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('successModal').style.display = 'none';
+        }
+
+        // Event listeners
+        document.getElementById('categoryFilter').addEventListener('change', updateDashboard);
+        document.getElementById('quarterFilter').addEventListener('change', updateDashboard);
+        document.getElementById('monthFilter').addEventListener('change', updateDashboard);
+        document.getElementById('tournamentFilter').addEventListener('change', function() {
+            updateDashboard();
+            toggleComparisonButton();
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            stopAutoRefresh();
+        });
+
+        // Initialize
+        loadInitialData();
+    </script>
+</body>
+</html>
